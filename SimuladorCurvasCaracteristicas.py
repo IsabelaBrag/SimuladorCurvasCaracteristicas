@@ -1,3 +1,4 @@
+from os import name
 from tkinter import *
 import tkinter as tk
 from tkinter import font
@@ -7,6 +8,9 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from tempfile import TemporaryFile
+from tkinter import filedialog
+
+from numpy.core.records import array
 
 
 
@@ -21,7 +25,7 @@ class myTable(object):
         self.root.geometry('450x600+450+30')
         self.root.resizable(False,False)
         self.register_type = 1
-        self.create_help_menu()
+        self.create_file_menu()
         self.create_status_welcome()
         self.entries = []
         
@@ -134,26 +138,120 @@ class myTable(object):
             font=("Calibri",12, font.BOLD), 
             relief=SOLID,
             cursor='hand2',
-            name='transfer',
             command=self.calculator_transfer
         )
         self.transfer_btn.place(x=40, y= 250, height=25)
+        
+    def create_file_menu(self):
+        menuFile = tk.Menu(self.root)
 
+        filemenu = tk.Menu(menuFile, tearoff=0)
+        filemenu.add_command(label="Import Data", command=self.import_file)
+        filemenu.add_command(label="Help", command=self.menu_help)
+        filemenu.add_command(label="About", command=self.menu_about)
 
-    def create_help_menu(self):
-        menu = tk.Menu(self.root)
+        menuFile.add_cascade(label="File", menu=filemenu)
 
-        helpmenu = tk.Menu(menu, tearoff=0)
-        helpmenu.add_command(label="About", command=self.menu_about)
+        self.root.config(menu=menuFile)
+        
+        
+    def get_files(self):
 
-        menu.add_cascade(label="Help", menu=helpmenu)
+        filename = filedialog.askopenfilename(initialdir="/",
+                                            title="Select a File",
+                                            filetypes=(("Text files",
+                                                        "*.txt*"),
+                                                        ("Dat files",
+                                                        "*.dat*")))
+        return filename
+    
+    def import_file(self):
+        
+        file_path = self.get_files()
 
-        self.root.config(menu=menu)
-
+        with open(file_path, 'r') as file:
+            if file_path.endswith(".txt"):
+                # Processamento de arquivo .txt
+                pass
+            if file_path.endswith(".dat"):
+                # Processamento de arquivo .dat
+                pass
+            
+            Lines = file.readlines()
+            count = 0
+            # Strips the newline character
+            self.array1 = []
+            self.array2 = []
+            for line in Lines:
+                count += 1
+                print("Line{}: {}".format(count, line.split()))
+                
+                self.array1.append(float(line.split()[0]))
+                self.array2.append(float(line.split()[1]))
+                 
+            print(self.array1, self.array2)
+            
+            self.new_window_for_import_data()
+            
+    def new_window_for_import_data(self):
+        
+        new_window = tk.Tk()
+        new_window.title('File Explorer')
+        new_window.geometry("400x450")
+        new_window.config(background="white")
+        
+        label_file_explorer = Label(new_window,
+                text="File Explorer using Tkinter",
+                width=100, height=4,
+                fg="blue")  
+        label_file_explorer.place(width=400, height=450)
+        
+        plot_output_curve = Button(label_file_explorer,             
+            width=16, 
+            text='Plot Output Curve', 
+            font=("Calibri",12, font.BOLD), 
+            relief=SOLID,
+            cursor='hand2',
+            command=lambda: self.plot_curves_import(True)
+         )
+        plot_output_curve.place(x = 30, y = 400)
+        
+        plot_transfer_curve = Button(label_file_explorer,             
+            width=16, 
+            text='Plot Transfer Curve', 
+            font=("Calibri",12, font.BOLD), 
+            relief=SOLID,
+            cursor='hand2',
+            command=lambda: self.plot_curves_import(False)
+         )
+        plot_transfer_curve.place(x = 230, y = 400)
+        
+    def plot_curves_import(self, name):
+        if name:
+            plt.figure()
+            plt.plot(self.array1, self.array2)
+        else:
+            plt.figure()
+            plt.plot(self.array1, self.array2)
+            
+        plt.xlabel("VDS(V)" if name else "VGS(V)", size = 12)
+        plt.ylabel("ID(A)", size = 12)
+        plt.title("OutPut Curve" if name else "Transfer Curve", 
+          fontdict={'family': 'serif', 
+                    'color' : 'darkblue',
+                    'size': 16})
+        plt.show()
+            
+            
     def menu_about(self):
-        msg = "Este programa tem como objetivo a partir dos dados inseridos, realizar a plotagem das curvas características."
+        msg = ("This program has as a goal from the data entered or imported, plot the characteristic curves.")
 
         messagebox.showinfo("Thin-film transistors characteristic curve simulator", msg)
+        
+    def menu_help(self):
+        msg = ("This program has as a goal from the data entered or imported, plot the characteristic curves.")
+
+        messagebox.askquestion("Thin-film transistors characteristic curve simulator", msg)
 
     def create_status_welcome(self):
         self.status = tk.Label(self.root,
@@ -256,7 +354,7 @@ class myTable(object):
         self.L = float(100)*(10**-6)
         print(self.L)
         #self.Vth = float(self.register_threhold.get())
-        self.Vth = float(1)
+        self.Vth = float(-1)
         print(self.Vth)
         #self.d = float(self.register_thickness.get())*(10**-9)
         self.d = float(5)*(10**-9)
@@ -294,57 +392,80 @@ class myTable(object):
         eo = 8.85*(10**-12)
         k = 4
         Ci = (eo*k)/self.d
+        print('Ci : ', Ci)
 #Calculo p/ "Output curve" (IdxVds)- Regiao linear (Vd<(Vg-Vth)) e Região Saturação (Vd>(Vg-Vth))  
 #function result = calcule_output(type)
-        Rep = int(self.end/self.step)
+        Rep = int((self.end - self.start)/self.step)
+        print('VALORES FINAIS', Rep)
         referencia = self.register_type
         passo = self.step
         start = int(self.start)
+        #Id = np.zeros((int(Rep if Rep>0 else Rep*-1 == Rep ),2))
+            
         Id = np.zeros((Rep,2))
-        
 
         plt.figure()
 
         if(curve):
-            Vds = self.start*referencia
+            Vds = self.start
+            file_name = ("OutputCurveValues")
+            file = open(file_name + '.dat', 'w')
+            arr = np.array(["                                                                                                                                                                                                                            " for i in range(Rep)])
             for Vg in self.VG:
-                for j in range(start, Rep):
-                    if ((Vg*referencia)<self.Vth and referencia == -1) or ((Vg*referencia)>self.Vth and referencia == 1):
-                        if (Vds>=((Vg*referencia)-self.Vth) and referencia == -1) or (Vds<=((Vg*referencia)-self.Vth) and referencia == 1):
-                            Id[j,0]=(self.Z/self.L)*self.u*Ci*((Vg*referencia)-self.Vth-(Vds/2))*Vds
-                        elif (Vds<=((Vg*referencia)-self.Vth) and referencia == - 1) or (Vds>=((Vg*referencia)-self.Vth) and referencia == 1):
-                            Id[j,0]=((self.Z*self.u*Ci)/(2*self.L))*(((Vg*referencia)-self.Vth)**2)
+                for j in range(Rep):
+                    if (Vg < self.Vth and referencia == -1) or (Vg > self.Vth and referencia == 1):
+                        if (Vds >= Vg-(self.Vth) and referencia == -1) or (Vds <= Vg-self.Vth and referencia == 1):
+                            Id[j,0]=(self.Z/self.L)*self.u*Ci*(Vg-self.Vth-(Vds/2))*Vds
+                        elif (Vds <= Vg-(self.Vth) and referencia ==  -1) or (Vds >= Vg-self.Vth and referencia == 1):
+                            Id[j,0]=((self.Z*self.u*Ci)/(2*self.L))*(((Vg)-self.Vth)**2)
                     Id[j,1]=Vds
-                    Vds=Vds+(passo*referencia)
+                    Vds=Vds+passo
 
-                Vds=self.start*referencia
+                Vds=self.start
                 
                 x=(Id[:,1])
                 y=(Id[:,0])
-                print('-------')
+
                 print('aaaaaaaaaaa')
                 print(x,y)
                 plt.plot(x,y, label = 'Vg = ')
-                Vg=Vg+1
-        else:
-            Vg=self.start*referencia
-
-            for Vds in self.VDS:
-                for j in range(start, Rep):
-                    if (Vg<self.Vth and referencia == -1) or (Vg>self.Vth and referencia == 1):
-                        if ((Vds*referencia)>=(Vg-self.Vth) and referencia == -1) or ((Vds*referencia)<=(Vg-self.Vth) and referencia == 1):
-                            Id[j,0]=(self.Z/self.L)*self.u*Ci*(Vg-self.Vth-((Vds*referencia)/2))*(Vds*referencia)
-                        elif ((Vds*referencia)<=(Vg-self.Vth) and referencia == - 1) or ((Vds*referencia)>=(Vg-self.Vth) and referencia == 1):
-                            Id[j,0]=((self.Z*self.u*Ci)/(2*self.L))*((Vg-self.Vth)**2)
-                    Id[j,1]=Vg
-                    Vg=Vg+(passo*referencia)
-
-                Vg=self.start*referencia
+                print('AQUIIII-  --- : ', Vg)
                 
-                self.x=(Id[:,1])
-                self.y=(Id[:,0])
-                plt.semilogy(self.x,self.y)
-                Vg=Vg+1
+                file.write("ID(A) " + '\t' + "VDS(V)" + '\t')
+                
+                for i in range(0,Rep):
+                    arr[i] = str(x[i]) + '\t' + str(y[i]) + '\t'
+                    
+            for i in range(0,Rep):
+                file.write(arr[i]+'\n')
+                    
+        else:
+            Vg=self.start
+            for Vds in self.VDS:
+                for j in range(Rep):
+                    if (Vg<self.Vth and referencia == -1) or (Vg>self.Vth and referencia == 1):
+                        if ((Vds)>=(Vg-self.Vth) and referencia == -1) or ((Vds)<=(Vg-self.Vth) and referencia == 1):
+                            Id[j,0]=(self.Z/self.L)*self.u*Ci*(Vg-self.Vth-((Vds)/2))*(Vds)
+                        elif ((Vds)<=(Vg-self.Vth) and referencia == -1) or ((Vds)>=(Vg-self.Vth) and referencia == 1):
+                            Id[j,0]=((self.Z*self.u*Ci)/(2*self.L))*((Vg-self.Vth)**2)
+                    else:
+                        Id[j,0] = 0         
+                    Id[j,1]=Vg
+                    Vg=Vg+(passo)
+
+                Vg=self.start
+                
+                x=(Id[:,1])
+                y=(Id[:,0])
+
+                plt.semilogy(x,y)
+
+                file_name = ("TransferCurveValues")
+                file = open(file_name + '.dat', 'w')
+                for Vds in self.VDS : 
+                    file.write("ID(A), VDS(V) = " + str(Vds) + ';' + '\t' + "VGS(V)" +';'+ '\t')
+                for i,j in zip(x,y):
+                    file.write(str(i) + '\t' + str(j) + '\n')
 
         plt.xlabel("Vds(V)" if curve else "Vg(V)", size = 12)
         plt.ylabel("ID(A)", size = 12)
@@ -353,13 +474,17 @@ class myTable(object):
                     'color' : 'darkblue',
                     'size': 16})
      
-        '''file_name = "calculedValues"
-        file = open(file_name + '.dat', 'w')
-        file.write("ID(A) " + str(self.x))
-        file.write(("VG" if curve else "VDS") + " = " + str(self.y))
+
+        # for i in [x,y]
+        # for i in x:
+        #     file.write(str(i) + '\n')
+            
+        # file.write('\t' +("VDS" if curve else "VGS") + '\n')
+        # for j in y:
+        #     file.write('\t' + str(j) + '\n')
         
-        #
-        file.close()'''
+        file.close()
+        
         #data = self.x
         #with open('your_data.dat', 'wb') as your_dat_file:  
         #    your_dat_file.write(struct.pack(len(data), data))
