@@ -9,8 +9,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tempfile import TemporaryFile
 from tkinter import filedialog
-
+import pandas as pd
 from numpy.core.records import array
+from pandas.core.frame import DataFrame
 
 
 
@@ -399,7 +400,7 @@ class myTable(object):
         print('VALORES FINAIS', Rep)
         referencia = self.register_type
         passo = self.step
-        start = int(self.start)
+    
         #Id = np.zeros((int(Rep if Rep>0 else Rep*-1 == Rep ),2))
             
         Id = np.zeros((Rep,2))
@@ -441,6 +442,7 @@ class myTable(object):
                     
         else:
             Vg=self.start
+            arrayDatas = []
             for Vds in self.VDS:
                 for j in range(Rep):
                     if (Vg<self.Vth and referencia == -1) or (Vg>self.Vth and referencia == 1):
@@ -459,13 +461,28 @@ class myTable(object):
                 y=(Id[:,0])
 
                 plt.semilogy(x,y)
+                
+                arrayDatas.append(x)
+                arrayDatas.append(y)
+            arrayDatas = pd.DataFrame(arrayDatas)
+            arrayDatas = arrayDatas.T
+                # arrayDatas.columns = ['ID(V), VGS = ' + str(self.VDS),  'VDS(V)']
+                
+            
+            print ("AQUII TO DATAFRAM: ", arrayDatas)
 
-                file_name = ("TransferCurveValues")
-                file = open(file_name + '.dat', 'w')
-                for Vds in self.VDS : 
-                    file.write("ID(A), VDS(V) = " + str(Vds) + ';' + '\t' + "VGS(V)" +';'+ '\t')
-                for i,j in zip(x,y):
-                    file.write(str(i) + '\t' + str(j) + '\n')
+                # file_name = ("TransferCurveValues")
+                # file = open(file_name + '.dat', 'w')
+                # file.write(str(arrayDatas))
+            
+            # arrayDatas.columns = ['ID(V), VGS = ', 'VDS(V)']
+            arrayDatas.to_string("arrayData.dat")
+                # for Vds in self.VDS : 
+                #     file.write("ID(A), VDS(V) = " + str(Vds) + ';' + '\t' + "VGS(V)" +';'+ '\t')
+                # for i,j in zip(x,y):
+                #     file.write(str(i) + '\t' + str(j) + '\n')
+                
+
 
         plt.xlabel("Vds(V)" if curve else "Vg(V)", size = 12)
         plt.ylabel("ID(A)", size = 12)
@@ -483,7 +500,7 @@ class myTable(object):
         # for j in y:
         #     file.write('\t' + str(j) + '\n')
         
-        file.close()
+        # file.close()
         
         #data = self.x
         #with open('your_data.dat', 'wb') as your_dat_file:  
