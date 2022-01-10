@@ -12,7 +12,7 @@ from tkinter import filedialog
 import pandas as pd
 from numpy.core.records import array
 from pandas.core.frame import DataFrame
-
+from copy import deepcopy
 
 
 class myTable(object):
@@ -160,10 +160,10 @@ class myTable(object):
 
         filename = filedialog.askopenfilename(initialdir="/",
                                             title="Select a File",
-                                            filetypes=(("Text files",
-                                                        "*.txt*"),
-                                                        ("Dat files",
-                                                        "*.dat*")))
+                                            filetypes=(("Dat files",
+                                                        "*.dat*"),
+                                                        ("Text files",
+                                                        "*.txt*")))
         return filename
     
     def import_file(self):
@@ -178,17 +178,19 @@ class myTable(object):
                 # Processamento de arquivo .dat
                 pass
             
-            Lines = file.readlines()
+            self.Lines = file.readlines()
+        
             count = 0
+            print("AQUI LINHAS --->: ", self.Lines)
             # Strips the newline character
             self.array1 = []
             self.array2 = []
-            for line in Lines:
+            for line in self.Lines:
                 count += 1
                 print("Line{}: {}".format(count, line.split()))
-                
-                self.array1.append(float(line.split()[0]))
-                self.array2.append(float(line.split()[1]))
+                print(len(line.split()))
+                self.array1.append(line.split()[0])
+                self.array2.append(line.split()[1])
                  
             print(self.array1, self.array2)
             
@@ -202,7 +204,7 @@ class myTable(object):
         new_window.config(background="white")
         
         label_file_explorer = Label(new_window,
-                text="File Explorer using Tkinter",
+                text= self.Lines,
                 width=100, height=4,
                 fg="blue")  
         label_file_explorer.place(width=400, height=450)
@@ -394,6 +396,8 @@ class myTable(object):
         k = 4
         Ci = (eo*k)/self.d
         print('Ci : ', Ci)
+        arrayDatas = []
+        columns = []
 #Calculo p/ "Output curve" (IdxVds)- Regiao linear (Vd<(Vg-Vth)) e Região Saturação (Vd>(Vg-Vth))  
 #function result = calcule_output(type)
         Rep = int((self.end - self.start)/self.step)
@@ -409,9 +413,6 @@ class myTable(object):
 
         if(curve):
             Vds = self.start
-            file_name = ("OutputCurveValues")
-            file = open(file_name + '.dat', 'w')
-            arr = np.array(["                                                                                                                                                                                                                            " for i in range(Rep)])
             for Vg in self.VG:
                 for j in range(Rep):
                     if (Vg < self.Vth and referencia == -1) or (Vg > self.Vth and referencia == 1):
@@ -424,25 +425,34 @@ class myTable(object):
 
                 Vds=self.start
                 
-                x=(Id[:,1])
-                y=(Id[:,0])
+                x=deepcopy(Id[:,1])
+                y=deepcopy(Id[:,0])
 
                 print('aaaaaaaaaaa')
                 print(x,y)
                 plt.plot(x,y, label = 'Vg = ')
                 print('AQUIIII-  --- : ', Vg)
                 
-                file.write("ID(A) " + '\t' + "VDS(V)" + '\t')
                 
-                for i in range(0,Rep):
-                    arr[i] = str(x[i]) + '\t' + str(y[i]) + '\t'
-                    
-            for i in range(0,Rep):
-                file.write(arr[i]+'\n')
+                columns.append("VDS(V)")
+                columns.append('ID(V), VG = ' + str(Vg))
+                arrayDatas.append(x)
+                arrayDatas.append(y)
+
+                print("dentro do for output: ", arrayDatas)
+                
+            print("FORA output:", arrayDatas)
+            arrayDatas = pd.DataFrame(arrayDatas)
+
+            arrayDatas = arrayDatas.T
+            
+            arrayDatas.columns = columns
+            
+            arrayDatas.to_string("OutputCurveValues.dat", index=False)
+                
                     
         else:
             Vg=self.start
-            arrayDatas = []
             for Vds in self.VDS:
                 for j in range(Rep):
                     if (Vg<self.Vth and referencia == -1) or (Vg>self.Vth and referencia == 1):
@@ -457,26 +467,33 @@ class myTable(object):
 
                 Vg=self.start
                 
-                x=(Id[:,1])
-                y=(Id[:,0])
+                x=deepcopy(Id[:,1])
+                y=deepcopy(Id[:,0])
 
                 plt.semilogy(x,y)
                 
-                arrayDatas.append(x)
+                columns.append('ID(V), VDS = ' + str(Vds))
+                columns.append("VG(V)")
                 arrayDatas.append(y)
-            arrayDatas = pd.DataFrame(arrayDatas)
-            arrayDatas = arrayDatas.T
-                # arrayDatas.columns = ['ID(V), VGS = ' + str(self.VDS),  'VDS(V)']
+                arrayDatas.append(x)
+
+                print("dentro do for: ", arrayDatas)
                 
+            print("FORA:", arrayDatas)
+            arrayDatas = pd.DataFrame(arrayDatas)
             
-            print ("AQUII TO DATAFRAM: ", arrayDatas)
+            arrayDatas = arrayDatas.T
+            
+            arrayDatas.columns = columns
+            
+            arrayDatas.to_string("TransferCurveValues.dat", index=False)
 
                 # file_name = ("TransferCurveValues")
                 # file = open(file_name + '.dat', 'w')
                 # file.write(str(arrayDatas))
             
             # arrayDatas.columns = ['ID(V), VGS = ', 'VDS(V)']
-            arrayDatas.to_string("arrayData.dat")
+            
                 # for Vds in self.VDS : 
                 #     file.write("ID(A), VDS(V) = " + str(Vds) + ';' + '\t' + "VGS(V)" +';'+ '\t')
                 # for i,j in zip(x,y):
