@@ -1,4 +1,6 @@
+from datetime import datetime
 from os import name
+from statistics import median, variance
 from tkinter import *
 import tkinter as tk
 from tkinter import font
@@ -7,13 +9,15 @@ from tkinter import ttk
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Button as But
 from tempfile import TemporaryFile
 from tkinter import filedialog
 import pandas as pd
 from numpy.core.records import array
 from pandas.core.frame import DataFrame
 from copy import deepcopy
-
+from scipy import signal
+from statistics import *
 
 class myTable(object):
 
@@ -36,7 +40,7 @@ class myTable(object):
         self.right_frame.place(x=0, y=0, width=450, height=580)
         
         Label(self.right_frame, text="Select the channel Type", bg='#CCCCCC', font=f).place(x=70, y=12)
-        Label(self.right_frame, text="u - mobility(cm²*v^-1*s^-1)", bg='#CCCCCC', font=f).place(x=70, y=50)
+        Label(self.right_frame, text="μ - mobility(cm²*v^-1*s^-1)", bg='#CCCCCC', font=f).place(x=70, y=50)
         Label(self.right_frame, text="Z - channel length(mm)", bg='#CCCCCC', font=f).place(x=70, y=90)
         Label(self.right_frame, text="L - channel width(µm)", bg='#CCCCCC', font=f).place(x=70, y=130)
         Label(self.right_frame, text="Vth - threhold voltage(V)", bg='#CCCCCC', font=f).place(x=70, y=170)
@@ -147,7 +151,6 @@ class myTable(object):
         menuFile = tk.Menu(self.root)
 
         filemenu = tk.Menu(menuFile, tearoff=0)
-        filemenu.add_command(label="Import Data", command=self.import_file)
         filemenu.add_command(label="Help", command=self.menu_help)
         filemenu.add_command(label="About", command=self.menu_about)
 
@@ -166,7 +169,7 @@ class myTable(object):
                                                         "*.txt*")))
         return filename
     
-    def import_file(self):
+    def import_file(self, *args):
         
         file_path = self.get_files()
 
@@ -181,35 +184,50 @@ class myTable(object):
             self.Lines = file.readlines()
         
             count = 0
-            print("AQUI LINHAS --->: ", self.Lines)
-            # Strips the newline character
-            self.array1 = []
-            self.array2 = []
+   
+            self.array = [[] for i in range(7)]
+
             for line in self.Lines:
                 count += 1
-                print("Line{}: {}".format(count, line.split()))
                 print(len(line.split()))
-                self.array1.append(line.split()[0])
-                self.array2.append(line.split()[1])
-                 
-            print(self.array1, self.array2)
+                (self.array[0].append(float(line.split()[0])))
+                (self.array[1].append(float(line.split()[1])))
+                if (len(line.split()) > 2):
+                    (self.array[2].append(float(line.split()[2])))
+                if (len(line.split()) > 3):
+                    (self.array[3].append(float(line.split()[3])))
+                if (len(line.split()) > 4):
+                    (self.array[4].append(float(line.split()[4])))
+                if (len(line.split()) > 5):
+                    (self.array[5].append(float(line.split()[5])))
+                if (len(line.split()) > 6):
+                    (self.array[6].append(float(line.split()[6])))
+                
+            print(self.array)
             
-            self.new_window_for_import_data()
+            self.plot_curves_import()
+            
             
     def new_window_for_import_data(self):
         
         new_window = tk.Tk()
+        
         new_window.title('File Explorer')
         new_window.geometry("400x450")
         new_window.config(background="white")
         
-        label_file_explorer = Label(new_window,
-                text= self.Lines,
-                width=100, height=4,
-                fg="blue")  
-        label_file_explorer.place(width=400, height=450)
         
-        plot_output_curve = Button(label_file_explorer,             
+        label_file_explorer = Listbox(new_window)  
+        scrollbar = Scrollbar(label_file_explorer)
+        scrollbar.pack( side = RIGHT, fill = Y )
+        scrollbar.config( command = label_file_explorer.yview )
+        
+        for line in self.Lines:
+            label_file_explorer.insert(END, line)
+        
+        label_file_explorer.place(width= 400 , height=400)
+        
+        plot_output_curve = Button(new_window,             
             width=16, 
             text='Plot Output Curve', 
             font=("Calibri",12, font.BOLD), 
@@ -219,7 +237,7 @@ class myTable(object):
          )
         plot_output_curve.place(x = 30, y = 400)
         
-        plot_transfer_curve = Button(label_file_explorer,             
+        plot_transfer_curve = Button(new_window,             
             width=16, 
             text='Plot Transfer Curve', 
             font=("Calibri",12, font.BOLD), 
@@ -229,32 +247,135 @@ class myTable(object):
          )
         plot_transfer_curve.place(x = 230, y = 400)
         
-    def plot_curves_import(self, name):
-        if name:
-            plt.figure()
-            plt.plot(self.array1, self.array2)
-        else:
-            plt.figure()
-            plt.plot(self.array1, self.array2)
-            
-        plt.xlabel("VDS(V)" if name else "VGS(V)", size = 12)
-        plt.ylabel("ID(A)", size = 12)
-        plt.title("OutPut Curve" if name else "Transfer Curve", 
-          fontdict={'family': 'serif', 
-                    'color' : 'darkblue',
-                    'size': 16})
-        plt.show()
-            
-            
-    def menu_about(self):
-        msg = ("This program has as a goal from the data entered or imported, plot the characteristic curves.")
-
-        messagebox.showinfo("Thin-film transistors characteristic curve simulator", msg)
         
+    def plot_curves_import(self):
+        
+        self.ax.scatter(self.array[0], self.array[1])
+        
+        if len(self.array[2]) > 1:
+            self.ax.scatter(self.array[0], self.array[2])
+        
+        if len(self.array[3]) > 1:
+            self.ax.scatter(self.array[0], self.array[3])
+            
+        if len(self.array[4]) > 1: 
+            self.ax.scatter(self.array[0], self.array[4])
+            
+        if len(self.array[5]) > 1: 
+            self.ax.scatter(self.array[0], self.array[5])       
+            
+        if len(self.array[6]) > 1: 
+            self.ax.scatter(self.array[0], self.array[6])       
+        
+        plt.tight_layout()
+        
+        plt.draw()
+        
+        self.ax2 = plt.axes([0.635, 0.0001, 0.156, 0.05])
+        self.deviations = But(self.ax2, 'Deviation')      
+        self.deviations.on_clicked(self.deviation)
+        
+    #region
+    def deviation(self, *args):
+        file_name = ("deviation" + str(datetime.now().strftime("_%m-%d-%Y_%H-%M-%S")))
+        file = open(file_name +'.dat', 'w+')
+        
+        for count in range(0,len(self.array_IDs)): 
+            dados_simulados = self.array_IDs[count]
+            
+            print("DADOS SIMULADOS: ", self.array_IDs[count])
+            
+            media_dados_simulados = mean(dados_simulados)
+            
+            print("Média dados Simulados: ", media_dados_simulados)
+            
+            dados_experimentais = self.array[count+1]
+            
+            print("DADOS EXPERIMENTAIS: ", dados_experimentais)
+            
+            desvio_padrao_amostral = stdev(dados_experimentais,  media_dados_simulados)
+            
+            print("Calculo do desvio padrão: ", desvio_padrao_amostral)
+                        
+            # fator de idealidade
+            # media_dados_experimentais = mean(dados_experimentais)
+            # Ai = media_dados_experimentais / media_dados_simulados
+            # A = float(Ai)
+            # print("Fator de Idealidade - A = ", A)
+            
+            file.write("Curva (" + str(count+1) + "): ")
+            file.write(str(desvio_padrao_amostral)+"\n")
+            # file.write("Fator de Idealidade A* (" + str(count+1) + "): ")
+            # file.write(str(A)+"\n")
+            
+            self.coeficiente_determinacao()
+            
+    def coeficiente_determinacao(self):
+        
+        file_name = ("coeficiente de determinacao" + str(datetime.now().strftime("_%m-%d-%Y_%H-%M-%S")))
+        file = open(file_name +'.dat', 'w+')
+        
+        # 1° Calcular a yex - ysim
+        
+        for index in range(1,len(self.array)):
+        
+            if len(self.array[index]) > 1:
+                
+                subtracao = np.zeros(len(self.array[index]))
+                subtracao2 = np.zeros(len(self.array[index]))
+                
+                for tam in range(len(self.array[index])):
+                    
+                    subtracao[tam] = (self.array[index][tam] - self.array_IDs[index - 1][tam])**2
+                
+                somatoria_primeira_parte = sum(subtracao)
+                
+                print("somatoria_primeira_parte", somatoria_primeira_parte)
+                    
+                media_valores_experimentais = mean(self.array[index])
+                
+                for tam2 in range(len(self.array[index])):
+                    
+                    subtracao2[tam2] = (self.array[index][tam2] - media_valores_experimentais)**2
+                    
+                print ("subtracao2", subtracao2)
+                
+                somatoria_segunda_parte = sum(subtracao2)   
+                
+                print("somatoria_segunda_parte", somatoria_segunda_parte)
+                
+                coeficiente_rendimento = (1 - (somatoria_primeira_parte/somatoria_segunda_parte))    
+                
+                print ("coeficiente_rendimento", coeficiente_rendimento )
+                
+                file.write("Coef. Determinacao (" + str(index) + "): ")
+                file.write(str(coeficiente_rendimento)+"\n")
+        
+            
     def menu_help(self):
-        msg = ("This program has as a goal from the data entered or imported, plot the characteristic curves.")
+        msg = """To run the program you need some rules, see the following instructions: 
+               \r1- Select which type of channel is the device to be simulated
+               \r2- Insert the data according to the indicated measurement unit
+               \r3- Start indicates which position the curve should be started 
+               \r4- Step indicates which variation of the curve points
+               \r5- End indicates which end position of the curve
+               \r6- N° Curves indicates which amount of Vds or Vg is desired
+               \r7- According to the number of selected curves, add the values of each Vds or Vg set to form each curve 
+               \r8- To plot the desired graph, click on the Plot Output Curve button or the Plot Transfer Curve button 
+               \r9- To Import data click on File ---> Import Data, it is allowed to import data only if they are .dat or .txt
+               \r10- When plotting each graph, the data calculated by the program are automatically saved"""
 
-        messagebox.askquestion("Thin-film transistors characteristic curve simulator", msg)
+        messagebox.showinfo("Instructions for help", msg)
+    #endregion   
+        
+    def menu_about(self):
+        
+        msg = """This program has as a goal, from the data entered or imported, plot the characteristic curves.
+            \rInterface developed by Isabela Bragança Roque using Python 3.8.8 SP, January 19, 2022.
+            \rMore information contact --> isabela.roque@unesp.com.br """
+        
+        messagebox.showinfo("Thin-film transistors characteristic curve simulator", msg)
+
 
     def create_status_welcome(self):
         self.status = tk.Label(self.root,
@@ -308,7 +429,8 @@ class myTable(object):
             new_entry.delete(0, END)
         
         new_entry = Entry(self.gender_frame_output if curve else self.gender_frame_transfer, font=f, fg='grey')
-        new_entry.insert(0, "VG" + str(position + 1))
+        new_entry.insert(0, ("VG" if curve else "VDS") + str(position + 1))
+        
         new_entry.bind("<Button-1>", clear_search)
 
         # Decide in with row the new entry will be placed
@@ -348,19 +470,19 @@ class myTable(object):
         #Fazer tratamento para metros
 
         #self.u = float(self.register_mobility.get())*(10**-4)
-        self.u = float(0.01)*(10**-4)
+        self.u = float(0.7753)*(10**-4)
         print(self.u)
         #self.Z = float(self.register_lenght.get())*(10**-3)
-        self.Z = float(100)*(10**-3)
+        self.Z = float(5)*(10**-3)
         print(self.Z)
         #self.L = float(self.register_width.get())*(10**-6)
         self.L = float(100)*(10**-6)
         print(self.L)
         #self.Vth = float(self.register_threhold.get())
-        self.Vth = float(-1)
+        self.Vth = float(33.06943)
         print(self.Vth)
         #self.d = float(self.register_thickness.get())*(10**-9)
-        self.d = float(5)*(10**-9)
+        self.d = float(300)*(10**-9)
         print(self.d)
         self.start = float( self.register_start.get() if curve else self.register_start2.get())
         print(self.start)
@@ -396,10 +518,10 @@ class myTable(object):
         k = 4
         Ci = (eo*k)/self.d
         print('Ci : ', Ci)
-        arrayDatas = []
-        columns = []
+        arrayDatas_lines = []
+        arrayDatas_columns = []
 #Calculo p/ "Output curve" (IdxVds)- Regiao linear (Vd<(Vg-Vth)) e Região Saturação (Vd>(Vg-Vth))  
-#function result = calcule_output(type)
+
         Rep = int((self.end - self.start)/self.step)
         print('VALORES FINAIS', Rep)
         referencia = self.register_type
@@ -409,17 +531,21 @@ class myTable(object):
             
         Id = np.zeros((Rep,2))
 
-        plt.figure()
-
+        fig = plt.figure()
+        
+        self.ax = plt.subplot()
+        
+        self.array_IDs = []
         if(curve):
             Vds = self.start
             for Vg in self.VG:
                 for j in range(Rep):
-                    if (Vg < self.Vth and referencia == -1) or (Vg > self.Vth and referencia == 1):
+                    if (Vg < self.Vth and referencia == -1) or (Vg >= self.Vth and referencia == 1):
                         if (Vds >= Vg-(self.Vth) and referencia == -1) or (Vds <= Vg-self.Vth and referencia == 1):
                             Id[j,0]=(self.Z/self.L)*self.u*Ci*(Vg-self.Vth-(Vds/2))*Vds
                         elif (Vds <= Vg-(self.Vth) and referencia ==  -1) or (Vds >= Vg-self.Vth and referencia == 1):
-                            Id[j,0]=((self.Z*self.u*Ci)/(2*self.L))*(((Vg)-self.Vth)**2)
+                            Id[j,0]=((self.Z*self.u*Ci)/(2*self.L))*((Vg-self.Vth)**2)
+                            
                     Id[j,1]=Vds
                     Vds=Vds+passo
 
@@ -430,80 +556,95 @@ class myTable(object):
 
                 print('aaaaaaaaaaa')
                 print(x,y)
-                plt.plot(x,y, label = 'Vg = ')
-                print('AQUIIII-  --- : ', Vg)
+                
+                self.array_IDs.append(y)
+                print ("Testeeeee:", self.array_IDs)
+                self.ax.plot(x,y, label = 'Vg = ')
+                plt.tight_layout()
+                axes = plt.axes([0.81, 0.00001, 0.2, 0.05])
+                bnext = But(axes, 'Import Data',color="orange")
+                bnext.on_clicked(self.import_file)
                 
                 
-                columns.append("VDS(V)")
-                columns.append('ID(V), VG = ' + str(Vg))
-                arrayDatas.append(x)
-                arrayDatas.append(y)
-
-                print("dentro do for output: ", arrayDatas)
+                arrayDatas_columns.append('ID(V), VG = ' + str(Vg))
+                arrayDatas_lines.append(y)
                 
-            print("FORA output:", arrayDatas)
-            arrayDatas = pd.DataFrame(arrayDatas)
-
+            arrayDatas_columns.append("VDS(V)")
+            arrayDatas_lines.append(x)
+            arrayDatas = pd.DataFrame(arrayDatas_lines)
             arrayDatas = arrayDatas.T
+            arrayDatas.columns = arrayDatas_columns
+            print("DATAFRAME: ", arrayDatas)
             
-            arrayDatas.columns = columns
+            file_name_outputcurve = ("outputcurve" + str(datetime.now().strftime("_%m-%d-%Y_%H-%M-%S")) + ".dat")
+            arrayDatas.to_string(file_name_outputcurve , index=False)
             
-            arrayDatas.to_string("OutputCurveValues.dat", index=False)
-                
                     
         else:
             Vg=self.start
             for Vds in self.VDS:
                 for j in range(Rep):
-                    if (Vg<self.Vth and referencia == -1) or (Vg>self.Vth and referencia == 1):
+                    # if (0 < Vg < self.Vth and referencia == 1 ):
+                    #     Kp = 1.0    # gain
+                    #     tau = 1.0   # time constant
+                    #     zeta = 0.72 # damping factor
+                    #     # (1) Transfer Function
+                    #     num = [Kp]
+                    #     den = [tau**2,2*zeta*tau,1]
+                    #     sys1 = signal.TransferFunction(num,den)
+                    #     t1,y1 =signal.step(sys1)
+                    #     Id[j,0] = Id[j-1,0]
+
+                    # if (Vg < self.Vth and referencia == 1)  :
+                    #     uef = (Vg - self.Vth)*self.u
+                    #     # #uef = (1/Ci)*(self.L/self.Z)*(diff())
+                    #     # Id[j,0]=(self.Z/self.L)*uef*10**-8*Ci*(Vg-self.Vth)*(Vds)
+                    #     Id[j,0]= 0.0
+                    # if (Vg <= 0 and referencia == 1):
+                    #if (Vds > (Vg-self.Vth)):
+                            
+                    #         Id[j,0]=(self.Z/self.L)*-self.u*10**-7*Ci*(Vg-self.Vth)*Vds                   
+                    if (Vg < self.Vth and referencia == -1) or (Vg >= self.Vth and referencia == 1):
                         if ((Vds)>=(Vg-self.Vth) and referencia == -1) or ((Vds)<=(Vg-self.Vth) and referencia == 1):
-                            Id[j,0]=(self.Z/self.L)*self.u*Ci*(Vg-self.Vth-((Vds)/2))*(Vds)
+                            Id[j,0]=(self.Z/self.L)*self.u*Ci*(Vg-self.Vth-(Vds/2))*(Vds)
                         elif ((Vds)<=(Vg-self.Vth) and referencia == -1) or ((Vds)>=(Vg-self.Vth) and referencia == 1):
                             Id[j,0]=((self.Z*self.u*Ci)/(2*self.L))*((Vg-self.Vth)**2)
-                    else:
-                        Id[j,0] = 0         
+                    
+                    
                     Id[j,1]=Vg
                     Vg=Vg+(passo)
 
                 Vg=self.start
                 
-                x=deepcopy(Id[:,1])
-                y=deepcopy(Id[:,0])
-
-                plt.semilogy(x,y)
+                x1=deepcopy(Id[:,1])
+                y2=deepcopy(Id[:,0])
                 
-                columns.append('ID(V), VDS = ' + str(Vds))
-                columns.append("VG(V)")
-                arrayDatas.append(y)
-                arrayDatas.append(x)
-
-                print("dentro do for: ", arrayDatas)
+                print("IIIIII***************", x1,y2)
                 
-            print("FORA:", arrayDatas)
-            arrayDatas = pd.DataFrame(arrayDatas)
-            
+                self.array_IDs.append(y2)
+                self.ax.plot(x1,y2, label = 'Vg = ')
+                
+                axes = plt.axes([0.81, 0.00001, 0.2, 0.05])
+                bnext = But(axes, 'Import Data',color="orange")
+                bnext.on_clicked(self.import_file)
+                
+                
+                arrayDatas_columns.append('ID(V), VDS = ' + str(Vds))
+                arrayDatas_lines.append(y2)
+                
+            arrayDatas_columns.append("VG(V)")
+            arrayDatas_lines.append(x1)
+            arrayDatas = pd.DataFrame(arrayDatas_lines)
             arrayDatas = arrayDatas.T
+            arrayDatas.columns = arrayDatas_columns
+            print("DATAFRAME: ", arrayDatas)
             
-            arrayDatas.columns = columns
+            file_name_outputcurve = ("transfercurve" + str(datetime.now().strftime("_%m-%d-%Y_%H-%M-%S")) + ".dat")
+            arrayDatas.to_string(file_name_outputcurve , index=False)
             
-            arrayDatas.to_string("TransferCurveValues.dat", index=False)
-
-                # file_name = ("TransferCurveValues")
-                # file = open(file_name + '.dat', 'w')
-                # file.write(str(arrayDatas))
-            
-            # arrayDatas.columns = ['ID(V), VGS = ', 'VDS(V)']
-            
-                # for Vds in self.VDS : 
-                #     file.write("ID(A), VDS(V) = " + str(Vds) + ';' + '\t' + "VGS(V)" +';'+ '\t')
-                # for i,j in zip(x,y):
-                #     file.write(str(i) + '\t' + str(j) + '\n')
-                
-
-
-        plt.xlabel("Vds(V)" if curve else "Vg(V)", size = 12)
-        plt.ylabel("ID(A)", size = 12)
-        plt.title("OutPut Curve" if curve else "Transfer Curve", 
+        self.ax.set_xlabel("Vds(V)" if curve else "Vg(V)", size = 12)
+        self.ax.set_ylabel("ID(A)", size = 12)
+        self.ax.set_title("OutPut Curve" if curve else "Transfer Curve", 
           fontdict={'family': 'serif', 
                     'color' : 'darkblue',
                     'size': 16})
@@ -530,7 +671,7 @@ class myTable(object):
         for Value in self.VG if curve else self.VDS:
             legend.append(("VG" if curve else "VDS")+ " = " + str(Value))
 
-        plt.legend(legend)
+        self.ax.legend(legend)
         plt.show()
 
         
