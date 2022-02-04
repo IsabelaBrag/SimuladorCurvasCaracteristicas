@@ -275,7 +275,7 @@ class myTable(object):
         file = open(file_name +'.dat', 'w+')
         
         for index in range(1,len(self.array)):
-        
+            fatI = 1
             if len(self.array[index]) > 1:
                 
                 subtracao = np.zeros(len(self.array[index]))
@@ -283,7 +283,7 @@ class myTable(object):
                 
                 for tam in range(len(self.array[index])):
                     
-                    subtracao[tam] = (self.array[index][tam] - self.array_IDs[index - 1][tam])**2
+                    subtracao[tam] = (self.array[index][tam]- (self.array_IDs[index - 1][tam])*fatI)**2
                 
                 somatoria_primeira_parte = sum(subtracao)
                     
